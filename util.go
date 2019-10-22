@@ -186,7 +186,8 @@ func repClosure(m map[rune]byte) func(string) string {
 			} else {
 				ch, ok = m[r]
 				if !ok {
-					ch = byte('.')
+					//ch = byte('.')
+					continue
 				}
 			}
 			buf.WriteByte(ch)
