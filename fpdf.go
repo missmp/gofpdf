@@ -4915,3 +4915,43 @@ func (f *Fpdf) arc(x, y, rx, ry, degRotate, degStart, degEnd float64,
 		f.out("Q")
 	}
 }
+
+func (f *Fpdf) SanitizeUnsuportSymbol(txt string) string {
+	utf := f.currentFont.utf8File
+	cmapPosition := utf.SeekTable("cmap")
+	utf.skip(2)
+	cmapTableCount := utf.readUint16()
+	runeCmapPosition := 0
+	for i := 0; i < cmapTableCount; i++ {
+		system := utf.readUint16()
+		coder := utf.readUint16()
+		position := utf.readUint32()
+		oldPosition := utf.fileReader.readerPosition
+		if (system == 3 && coder == 1) || system == 0 {
+			format := utf.getUint16(cmapPosition + position)
+			if format == 4 {
+				runeCmapPosition = cmapPosition + position
+				break
+			}
+		}
+		utf.seek(int(oldPosition))
+	}
+
+	if runeCmapPosition == 0 {
+		fmt.Printf("Font does not have cmap for Unicode\n")
+		return txt
+	}
+
+	symbolCharDictionary := make(map[int][]int)
+	charSymbolDictionary := make(map[int]int)
+	utf.generateSCCSDictionaries(runeCmapPosition, symbolCharDictionary, charSymbolDictionary)
+
+	var res []rune
+	for _, char := range []rune(txt) {
+		if _, ok := charSymbolDictionary[int(char)]; ok {
+			res = append(res, char)
+		}
+	}
+
+	return string(res)
+}
